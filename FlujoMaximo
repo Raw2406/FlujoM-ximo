@@ -1,10 +1,179 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
-import random
-from collections import deque
+from tkinter import messagebox, simpledialog, ttk
 import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections import deque
+import random
+
+class VentanaSeleccionTipo(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Selección de Tipo de Generación")
+        self.resultado = None
+        
+        # Hacer la ventana modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Centrar la ventana
+        self.geometry("300x150")
+        self.resizable(False, False)
+        self.configure(bg='#f0f0f0')
+        
+        # Frame principal
+        frame = tk.Frame(self, bg='#f0f0f0')
+        frame.pack(expand=True, padx=20, pady=20)
+        
+        # Etiqueta
+        tk.Label(frame, 
+                text="Seleccione el tipo de generación de nodos:",
+                bg='#f0f0f0',
+                font=("Helvetica", 10, "bold")).pack(pady=10)
+        
+        # Botones
+        tk.Button(frame, 
+                 text="Generación Clásica",
+                 command=lambda: self.seleccionar("clasica"),
+                 width=20).pack(pady=5)
+        
+        tk.Button(frame, 
+                 text="Generación Personalizada",
+                 command=lambda: self.seleccionar("personalizada"),
+                 width=20).pack(pady=5)
+        
+        # Centrar la ventana
+        self.center_window()
+        
+        # Esperar respuesta
+        self.wait_window()
+        
+    def center_window(self):
+        self.update_idletasks()
+        width = self.winfo_width()
+        height = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        
+    def seleccionar(self, tipo):
+        self.resultado = tipo
+        self.destroy()
+
+# Clase para la ventana de colocación personalizada de nodos
+class VentanaColocacionNodos(tk.Toplevel):
+    def __init__(self, parent, n_nodos):
+        super().__init__(parent)
+        self.title("Colocación de Nodos")
+        self.n_nodos = n_nodos
+        self.nodo_actual = 0
+        self.posiciones = {}
+        
+        # Hacer la ventana modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Configurar tamaño y posición
+        self.geometry("600x400")
+        self.resizable(False, False)
+        
+        # Frame principal
+        self.frame_principal = tk.Frame(self)
+        self.frame_principal.pack(expand=True, fill=tk.BOTH)
+        
+        # Canvas para dibujar
+        self.canvas = tk.Canvas(self.frame_principal, bg='white')
+        self.canvas.pack(expand=True, fill=tk.BOTH)
+        
+        # Etiqueta de instrucciones
+        self.label_instrucciones = tk.Label(self, 
+                                          text=f"Haga clic para colocar el nodo {self.nodo_actual}",
+                                          font=("Helvetica", 10))
+        self.label_instrucciones.pack(pady=5)
+        
+        # Bind del click
+        self.canvas.bind("<Button-1>", self.colocar_nodo)
+        
+        # Centrar la ventana
+        self.center_window()
+        
+    def center_window(self):
+        self.update_idletasks()
+        width = self.winfo_width()
+        height = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        
+    def colocar_nodo(self, event):
+        if self.nodo_actual < self.n_nodos:
+            # Obtener coordenadas normalizadas
+            x = (event.x / self.canvas.winfo_width()) * 4 - 2  # Normalizar a [-2, 2]
+            y = (event.y / self.canvas.winfo_height()) * 4 - 2  # Normalizar a [-2, 2]
+            
+            # Guardar posición
+            self.posiciones[self.nodo_actual] = (x, y)
+            
+            # Dibujar nodo
+            radio = 20
+            self.canvas.create_oval(event.x-radio, event.y-radio, 
+                                  event.x+radio, event.y+radio, 
+                                  fill='lightblue')
+            self.canvas.create_text(event.x, event.y, 
+                                  text=str(self.nodo_actual),
+                                  font=("Helvetica", 10))
+            
+            self.nodo_actual += 1
+            
+            if self.nodo_actual < self.n_nodos:
+                self.label_instrucciones.config(
+                    text=f"Haga clic para colocar el nodo {self.nodo_actual}")
+            else:
+                self.label_instrucciones.config(
+                    text="Todos los nodos han sido colocados")
+                self.destroy()
+                
+class VentanaArista(tk.Toplevel):
+    def __init__(self, parent, n_nodos):
+        super().__init__(parent)
+        self.title("Agregar Arista")
+        self.resultado = None
+        
+        # Hacer la ventana modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Crear y configurar widgets
+        tk.Label(self, text="Nodo Origen:").grid(row=0, column=0, padx=5, pady=5)
+        tk.Label(self, text="Nodo Destino:").grid(row=1, column=0, padx=5, pady=5)
+        tk.Label(self, text="Capacidad:").grid(row=2, column=0, padx=5, pady=5)
+        
+        self.origen = ttk.Combobox(self, values=list(range(n_nodos)))
+        self.destino = ttk.Combobox(self, values=list(range(n_nodos)))
+        self.capacidad = tk.Entry(self)
+        
+        self.origen.grid(row=0, column=1, padx=5, pady=5)
+        self.destino.grid(row=1, column=1, padx=5, pady=5)
+        self.capacidad.grid(row=2, column=1, padx=5, pady=5)
+        
+        tk.Button(self, text="Aceptar", command=self.aceptar).grid(row=3, column=0, columnspan=2, pady=10)
+        
+        # Centrar la ventana
+        self.geometry("+%d+%d" % (parent.winfo_rootx()+50, parent.winfo_rooty()+50))
+        
+        self.wait_window()
+    
+    def aceptar(self):
+        try:
+            origen = int(self.origen.get())
+            destino = int(self.destino.get())
+            capacidad = int(self.capacidad.get())
+            if capacidad <= 0:
+                raise ValueError("La capacidad debe ser positiva")
+            self.resultado = (origen, destino, capacidad)
+            self.destroy()
+        except ValueError as e:
+            messagebox.showerror("Error", str(e))
 
 class AplicacionFlujoMaximo:
     def __init__(self, raiz):
@@ -12,15 +181,21 @@ class AplicacionFlujoMaximo:
         self.raiz.title("Cálculo de Flujo Máximo")
         self.configurar_menu()
         self.configurar_widgets()
-        self.pos = {}  # Almacenar las posiciones de los nodos
-        self.nombres_nodos = {}  # Almacenar nombres personalizados de los nodos
+        self.G = nx.DiGraph()
+        self.pos = {}
+        self.matriz_capacidades = None
+        self.n = 0
+        self.fuente = None
+        self.sumidero = None
 
     def configurar_menu(self):
         barra_menus = tk.Menu(self.raiz)
         self.raiz.config(menu=barra_menus)
 
         menu_opciones = tk.Menu(barra_menus, tearoff=0)
-        menu_opciones.add_command(label="Ejecutar Programa", command=self.ejecutar_programa)
+        menu_opciones.add_command(label="Iniciar Red de Flujo", command=self.iniciar_red)
+        menu_opciones.add_command(label="Agregar Arista", command=self.agregar_arista)
+        menu_opciones.add_command(label="Calcular Flujo Máximo", command=self.calcular_flujo_maximo)
         menu_opciones.add_command(label="Borrar", command=self.limpiar_pantalla)
         menu_opciones.add_separator()
         menu_opciones.add_command(label="Salir", command=self.raiz.quit)
@@ -30,41 +205,292 @@ class AplicacionFlujoMaximo:
         barra_menus.add_cascade(label="Ver Pasos", menu=self.menu_pasos)
 
     def configurar_widgets(self):
-        self.texto_salida = tk.Text(self.raiz, wrap=tk.WORD, width=60, height=20)
-        self.texto_salida.pack(padx=10, pady=10, side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Ajustar el tamaño del panel de texto
+        self.texto_salida = tk.Text(self.raiz, wrap=tk.WORD, width=40, height=15)
+        self.texto_salida.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         marco_derecho = tk.Frame(self.raiz)
-        marco_derecho.pack(padx=10, pady=10, side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        marco_derecho.pack(padx=5, pady=5, side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-        self.etiqueta_paso = tk.Label(marco_derecho, text="Paso: ", font=("Helvetica", 12))
+        self.etiqueta_paso = tk.Label(marco_derecho, text="Red de Flujo", font=("Helvetica", 9))
         self.etiqueta_paso.pack()
 
-        self.marco_grafico = tk.Frame(marco_derecho, width=400, height=400)
+        self.marco_grafico = tk.Frame(marco_derecho, width=250, height=250)
         self.marco_grafico.pack(fill=tk.BOTH, expand=True)
 
-    def limpiar_pantalla(self):
-        self.texto_salida.delete(1.0, tk.END)
+    def calcular_posiciones_niveles(self):
+        if not self.n:
+            return
+        
+        # Parámetros de espaciado
+        r = 1.0  # Distancia base entre niveles
+        spacing_vertical = 1.5  # Distancia vertical entre nodos del mismo nivel reducida
+        
+        # Inicializar diccionario de posiciones
+        self.pos = {}
+        
+        # Colocar nodo fuente
+        self.pos[self.fuente] = (-2*r, 0)
+        
+        # Colocar nodo sumidero
+        self.pos[self.sumidero] = (2*r, 0)
+        
+        # Obtener nodos restantes (excluyendo fuente y sumidero)
+        nodos_restantes = [i for i in range(self.n) if i != self.fuente and i != self.sumidero]
+        
+        # Distribuir nodos en niveles
+        if len(nodos_restantes) <= 6:  # Para 8 nodos en total
+            nodos_por_nivel = [2, 2, 2]  # 3 niveles con 2 nodos cada uno
+            x_positions = [-r, 0, r]  # Posiciones x para cada nivel
+        else:  # Para 9 o más nodos
+            nodos_por_nivel = [2, 3, 2]  # 3 niveles con distribución 2-3-2
+            x_positions = [-r, 0, r]  # Posiciones x para cada nivel
+        
+        nodo_idx = 0
+        for nivel, num_nodos in enumerate(nodos_por_nivel):
+            y_offset = (num_nodos - 1) * spacing_vertical / 2
+            x_pos = x_positions[nivel]
+            
+            for i in range(num_nodos):
+                if nodo_idx < len(nodos_restantes):
+                    nodo = nodos_restantes[nodo_idx]
+                    y_pos = -y_offset + i * spacing_vertical
+                    self.pos[nodo] = (x_pos, y_pos)
+                    nodo_idx += 1
+        
+        # Verificar que todos los nodos tengan posición
+        for i in range(self.n):
+            if i not in self.pos:
+                # Asignar posición por defecto si falta algún nodo
+                self.pos[i] = (0, 0)
+                
+    def generar_red_aleatoria(self):
+        """Genera una red aleatoria con capacidades aleatorias para las aristas,
+        respetando las restricciones de no bucles y no aristas bidireccionales."""
+        if self.n < 2:
+           messagebox.showerror("Error", "No hay suficientes nodos para generar una red aleatoria.")
+           return
+    
+        # Limpiar el grafo existente
+        self.G.clear()
+    
+        # Crear nodos
+        for i in range(self.n):
+           self.G.add_node(i)
+
+        # Conjunto para mantener registro de aristas ya usadas (en cualquier dirección)
+        aristas_usadas = set()
+    
+        # Determinar número de aristas a crear
+        min_aristas = self.n - 1  # Mínimo para asegurar conectividad
+        max_aristas = (self.n * (self.n - 1)) // 2  # Máximo posible sin bucles ni bidireccionales
+        num_aristas = random.randint(min_aristas, max_aristas)
+    
+        # Lista de todas las posibles aristas sin bucles
+        posibles_aristas = [(i, j) for i in range(self.n) for j in range(self.n) 
+                          if i != j and (i, j) not in aristas_usadas and (j, i) not in aristas_usadas]
+    
+        # Asegurarse de que haya un camino desde la fuente al sumidero
+        camino_base = self.generar_camino_base()
+        for i in range(len(camino_base)-1):
+          origen, destino = camino_base[i], camino_base[i+1]
+          capacidad = random.randint(1, 10)
+          self.G.add_edge(origen, destino, capacity=capacidad)
+          aristas_usadas.add((origen, destino))
+          aristas_usadas.add((destino, origen))  # Evitar la dirección opuesta
+          if (origen, destino) in posibles_aristas:
+               posibles_aristas.remove((origen, destino))
+          if (destino, origen) in posibles_aristas:
+               posibles_aristas.remove((destino, origen))
+    
+        # Agregar aristas adicionales aleatorias
+        aristas_adicionales = num_aristas - (len(camino_base) - 1)
+        while aristas_adicionales > 0 and posibles_aristas:
+           origen, destino = random.choice(posibles_aristas)
+           capacidad = random.randint(1, 10)
+        
+           # Verificar que la arista no cree un ciclo con la fuente o el sumidero
+           if (origen != self.sumidero and destino != self.fuente):
+               self.G.add_edge(origen, destino, capacity=capacidad)
+               aristas_usadas.add((origen, destino))
+               aristas_usadas.add((destino, origen))
+               posibles_aristas.remove((origen, destino))
+               if (destino, origen) in posibles_aristas:
+                   posibles_aristas.remove((destino, origen))
+               aristas_adicionales -= 1
+
+    def generar_camino_base(self):
+        """Genera un camino base desde la fuente hasta el sumidero."""
+        nodos_disponibles = set(range(self.n)) - {self.fuente, self.sumidero}
+        camino = [self.fuente]
+    
+        # Seleccionar algunos nodos intermedios aleatoriamente
+        num_intermedios = random.randint(1, min(3, len(nodos_disponibles)))
+        nodos_intermedios = random.sample(list(nodos_disponibles), num_intermedios)
+    
+        camino.extend(nodos_intermedios)
+        camino.append(self.sumidero)
+
+        return camino
+            
+    def actualizar_grafo(self):
         self.limpiar_grafico()
-
-    def limpiar_grafico(self):
-        for widget in self.marco_grafico.winfo_children():
-            widget.destroy()
         plt.clf()
+        
+        # Dibujar el grafo con nodos más pequeños
+        nx.draw(self.G, self.pos, with_labels=True, 
+                node_color='lightblue', 
+                node_size=800,    # Tamaño de nodos reducido
+                font_size=8,      # Tamaño de fuente reducido
+                arrows=True,
+                arrowsize=10)     # Tamaño de flechas reducido
 
-    def mostrar_matriz(self, C):
-        self.texto_salida.insert(tk.END, "\nMatriz de capacidades:\n")
-        for fila in C:
+        # Mostrar las capacidades en las aristas con fuente más pequeña
+        edge_labels = nx.get_edge_attributes(self.G, 'capacity')
+        nx.draw_networkx_edge_labels(self.G, self.pos, edge_labels=edge_labels, font_size=7)
+
+        canvas = FigureCanvasTkAgg(plt.gcf(), master=self.marco_grafico)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+    def iniciar_red(self):
+        self.limpiar_pantalla()
+        self.G.clear()
+    
+    # Solicitar número de nodos
+        self.n = simpledialog.askinteger("Número de Nodos", 
+         "Ingrese el número de nodos (de 8 a 16):", 
+         minvalue=8, maxvalue=16)
+    
+        if not self.n:
+            return
+    
+    # Mostrar ventana de selección de tipo
+        ventana_tipo = VentanaSeleccionTipo(self.raiz)
+        if not ventana_tipo.resultado:
+          return
+    
+    # Solicitar nodos fuente y sumidero
+        self.fuente = simpledialog.askinteger("Nodo Fuente", 
+          f"Seleccione el nodo fuente (0 a {self.n-1}):",
+          minvalue=0, maxvalue=self.n-1)
+        
+        if self.fuente is None:
+         return
+        
+        self.sumidero = simpledialog.askinteger("Nodo Sumidero", 
+         f"Seleccione el nodo sumidero (0 a {self.n-1}):",
+         minvalue=0, maxvalue=self.n-1)
+        
+        if self.sumidero is None or self.sumidero == self.fuente:
+         messagebox.showerror("Error", "El sumidero debe ser diferente al nodo fuente")
+         return
+    
+        # Crear nodos
+        for i in range(self.n):
+           self.G.add_node(i)
+    
+        if ventana_tipo.resultado == "clasica":
+          # Usar el método original
+          self.calcular_posiciones_niveles()
+        else:
+           # Usar colocación personalizada
+          ventana_colocacion = VentanaColocacionNodos(self.raiz, self.n)
+          self.raiz.wait_window(ventana_colocacion)
+          if hasattr(ventana_colocacion, 'posiciones'):
+              self.pos = ventana_colocacion.posiciones
+          else:
+              return
+    
+        # Preguntar si desea generar red aleatoria
+        if messagebox.askyesno("Red Aleatoria", "¿Desea generar una red aleatoria?"):
+          self.generar_red_aleatoria()
+          self.generar_matriz()
+    
+        self.actualizar_grafo()
+        self.texto_salida.insert(tk.END, "Red de flujo iniciada.\n")
+        self.texto_salida.insert(tk.END, f"Nodo fuente: {self.fuente}\n")
+        self.texto_salida.insert(tk.END, f"Nodo sumidero: {self.sumidero}\n")
+        
+    def agregar_arista(self):
+        if not self.G:
+            messagebox.showerror("Error", "Primero debe iniciar la red de flujo.")
+            return
+        
+        # Usar la ventana personalizada para ingresar datos
+        ventana = VentanaArista(self.raiz, self.n)
+        if ventana.resultado:
+         origen, destino, capacidad = ventana.resultado
+        
+            # Validaciones
+         if origen == destino:
+              messagebox.showerror("Error", "No se permiten bucles.")
+              return
+            
+         if origen == self.sumidero or destino == self.fuente:
+             messagebox.showerror("Error", "No se pueden crear aristas desde el sumidero o hacia la fuente.")
+             return
+            
+         if self.G.has_edge(origen, destino):
+             messagebox.showerror("Error", "Esta arista ya existe.")
+             return
+
+        # Nueva validación para aristas bidireccionales
+         if self.G.has_edge(destino, origen):
+             messagebox.showerror("Error", "Ya existe una arista en dirección opuesta. No se permiten conexiones bidireccionales.")
+             return
+            
+        # Agregar arista
+         self.G.add_edge(origen, destino, capacity=capacidad)
+         self.actualizar_grafo()
+        
+        # Preguntar si desea agregar otra arista
+         if not messagebox.askyesno("Continuar", "¿Desea agregar otra arista?"):
+             self.generar_matriz()
+
+    def actualizar_grafo(self):
+        self.limpiar_grafico()
+        plt.clf()
+        
+        plt.figure(figsize=(8, 6))
+        
+        # Dibujar el grafo
+        nx.draw(self.G, self.pos, with_labels=True, 
+                node_color='lightblue', 
+                node_size=2000, 
+                font_size=10,
+                arrows=True,
+                arrowsize=20,
+                edge_color='gray')
+
+        # Mostrar las capacidades en las aristas
+        edge_labels = nx.get_edge_attributes(self.G, 'capacity')
+        nx.draw_networkx_edge_labels(self.G, self.pos, edge_labels=edge_labels, 
+                                     label_pos = 0.7)
+
+        canvas = FigureCanvasTkAgg(plt.gcf(), master=self.marco_grafico)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+    def generar_matriz(self):
+        # Generar matriz de capacidades
+        self.matriz_capacidades = [[0] * self.n for _ in range(self.n)]
+        for u, v, data in self.G.edges(data=True):
+            self.matriz_capacidades[u][v] = data['capacity']
+
+        self.texto_salida.insert(tk.END, "\nMatriz de capacidades generada:\n")
+        for fila in self.matriz_capacidades:
             self.texto_salida.insert(tk.END, " ".join(f"{cap:3}" for cap in fila) + "\n")
 
     def bfs(self, C, F, fuente, sumidero, padre):
-        # Búsqueda en anchura (BFS) para encontrar un camino aumentante
         visitado = [False] * len(C)
         queue = deque([fuente])
         visitado[fuente] = True
+        
         while queue:
             u = queue.popleft()
             for v in range(len(C)):
-                if not visitado[v] and C[u][v] - F[u][v] > 0:  # Capacidad residual
+                if not visitado[v] and C[u][v] - F[u][v] > 0:
                     queue.append(v)
                     visitado[v] = True
                     padre[v] = u
@@ -74,21 +500,12 @@ class AplicacionFlujoMaximo:
 
     def edmonds_karp(self, C, fuente, sumidero):
         n = len(C)
-        F = [[0] * n for _ in range(n)]  # Flujo inicial es 0
+        F = [[0] * n for _ in range(n)]
         padre = [-1] * n
         flujo_maximo = 0
-        G = nx.DiGraph()  # Grafo dirigido
-
-        for u in range(n):
-            for v in range(n):
-                if C[u][v] > 0:
-                    G.add_edge(u, v, capacity=C[u][v])
-
-        # Mejor disposición del grafo
-        self.pos = nx.shell_layout(G)
-
         pasos = []
         paso = 1
+
         while self.bfs(C, F, fuente, sumidero, padre):
             flujo_camino = float('Inf')
             s = sumidero
@@ -115,151 +532,119 @@ class AplicacionFlujoMaximo:
 
             pasos.append((paso, camino, flujo_camino, flujo_maximo, [fila[:] for fila in F]))
 
-            # Añadir explicación en la salida de texto
             self.texto_salida.insert(tk.END, f"\nPaso {paso}:\n")
-            self.texto_salida.insert(tk.END, f"Camino aumentante encontrado: " + " -> ".join(map(str, camino)) + "\n")
-            self.texto_salida.insert(tk.END, f"Flujo del camino: {flujo_camino}. Este flujo es el mínimo residual disponible en las aristas de este camino.\n")
-            self.texto_salida.insert(tk.END, f"Flujo acumulado hasta ahora: {flujo_maximo}.\n")
+            self.texto_salida.insert(tk.END, f"Camino aumentante: " + " -> ".join(map(str, camino)) + "\n")
+            self.texto_salida.insert(tk.END, f"Flujo del camino: {flujo_camino}\n")
+            self.texto_salida.insert(tk.END, f"Flujo acumulado: {flujo_maximo}\n")
 
             paso += 1
 
-        return flujo_maximo, pasos, G, F
+        return flujo_maximo, pasos, F
 
-    def graficar_paso(self, datos_paso, G):
+    def graficar_paso(self, datos_paso, F_final):
         paso, camino, flujo_camino, flujo_maximo, F = datos_paso
-
+        
         self.limpiar_grafico()
         self.etiqueta_paso.config(text=f"Paso: {paso}")
-
+        
         plt.clf()
-        nx.draw(G, self.pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=2000, font_size=10)
+        plt.figure(figsize=(8, 6))
+        
+        # Dibujar el grafo base
+        nx.draw(self.G, self.pos, with_labels=True, 
+                node_color='lightblue', 
+                node_size=2000, 
+                font_size=10,
+                arrows=True,
+                arrowsize=20)
 
-        # Mostrar el flujo actual solo para las aristas involucradas en el camino
+        # Resaltar el camino actual
         aristas_camino = [(camino[i], camino[i+1]) for i in range(len(camino)-1)]
+        
+        # Mostrar todas las aristas con sus flujos actuales
         edge_labels = {}
-        for u, v in aristas_camino:
+        for u, v, data in self.G.edges(data=True):
+            capacidad = data['capacity']
             flujo_actual = F[u][v]
-            capacidad = G[u][v]['capacity']
-            # Si la arista está llena, colorear el texto en rojo
-            if flujo_actual == capacidad:
-                edge_labels[(u, v)] = f"({capacidad}, {flujo_actual})"
-            else:
-                edge_labels[(u, v)] = f"({capacidad}, {flujo_actual})"
+            edge_labels[(u, v)] = f"{capacidad}/{flujo_actual}"
+            
+            # Colorear las aristas según si están en el camino actual
+            if (u, v) in aristas_camino:
+                nx.draw_networkx_edges(self.G, self.pos, 
+                                     edgelist=[(u, v)], 
+                                     edge_color='red',
+                                     width=2)
 
-        # Dibujar etiquetas en negro para aristas no llenas y en rojo para las llenas
-        edge_labels_color = {
-            (u, v): (f"({G[u][v]['capacity']}, {F[u][v]})", 'red' if F[u][v] == G[u][v]['capacity'] else 'black')
-            for u, v in aristas_camino
-        }
-
-        # Dibujar solo las aristas del camino actual con los colores correctos
-        for (u, v), (label, color) in edge_labels_color.items():
-            nx.draw_networkx_edge_labels(
-                G, self.pos, edge_labels={(u, v): label}, font_color=color, font_size=10
-            )
+        nx.draw_networkx_edge_labels(self.G, self.pos, edge_labels=edge_labels, label_pos = 0.7)
 
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.marco_grafico)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-    def graficar_flujo_maximo(self, G, F):
-        """Grafica el grafo completo mostrando las aristas que están colapsadas"""
+    def graficar_flujo_maximo(self, F):
         self.limpiar_grafico()
         plt.clf()
+        plt.figure(figsize=(8, 6))
 
-        # Graficar todos los nodos y aristas
-        nx.draw(G, self.pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=2000, font_size=10)
+        # Dibujar el grafo base
+        nx.draw(self.G, self.pos, with_labels=True, 
+                node_color='lightblue', 
+                node_size=2000, 
+                font_size=10,
+                arrows=True,
+                arrowsize=20)
 
-        # Encontrar las aristas colapsadas (donde el flujo iguala la capacidad)
-        aristas_colapsadas = [(u, v) for u, v in G.edges() if F[u][v] == G[u][v]['capacity']]
-        edge_labels = {edge: f"({G[edge[0]][edge[1]]['capacity']}, {F[edge[0]][edge[1]]})" for edge in aristas_colapsadas}
+        # Mostrar todas las aristas con sus flujos finales
+        edge_labels = {}
+        for u, v, data in self.G.edges(data=True):
+            capacidad = data['capacity']
+            flujo_actual = F[u][v]
+            edge_labels[(u, v)] = f"{capacidad}/{flujo_actual}"
+            
+            # Colorear las aristas saturadas
+            if flujo_actual == capacidad:
+                nx.draw_networkx_edges(self.G, self.pos, 
+                                     edgelist=[(u, v)], 
+                                     edge_color='red',
+                                     width=2)
 
-        # Dibujar solo las aristas colapsadas en rojo
-        nx.draw_networkx_edges(G, self.pos, edgelist=aristas_colapsadas, edge_color='red', width=2)
-        nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels, font_color='red', font_size=10)
+        nx.draw_networkx_edge_labels(self.G, self.pos, edge_labels=edge_labels, label_pos=0.7)
 
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.marco_grafico)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-    def ejecutar_programa(self):
-        self.limpiar_pantalla()
-
-        n = simpledialog.askinteger("Tamaño de la matriz", "Ingrese el tamaño de la matriz (n ∈ [8, 16]):")
-        if not n or n < 8 or n > 16:
-            messagebox.showerror("Error", "El tamaño debe estar entre 8 y 16.")
+    def calcular_flujo_maximo(self):
+        if not self.matriz_capacidades:
+            messagebox.showerror("Error", "Primero debe completar la red de flujo.")
             return
 
-        # Opción de ingresar nombres de nodos
-        usar_nombres = messagebox.askyesno("Nombres de Nodos", "¿Desea asignar nombres personalizados a los nodos?")
-        if usar_nombres:
-            for i in range(n):
-                nombre = simpledialog.askstring("Nombre del nodo", f"Ingrese el nombre del nodo {i}:")
-                self.nombres_nodos[i] = nombre if nombre else str(i)
-        else:
-            self.nombres_nodos = {i: str(i) for i in range(n)}
-
-        opcion = messagebox.askyesno("Generar Matriz", "¿Desea generar aleatoriamente la matriz?")
-
-        if opcion:
-            C = [[random.randint(1, 20) for _ in range(n)] for _ in range(n)]
-            # Evitar bucles (capacidades en la diagonal)
-            for i in range(n):
-                C[i][i] = 0  # Eliminar bucles en la diagonal
-
-            # Evitar aristas inversas
-            for i in range(n):
-                for j in range(i+1, n):
-                    if random.choice([True, False]):  # Mantener arista en la parte superior
-                        C[j][i] = 0
-                    else:  # Mantener arista en la parte inferior
-                        C[i][j] = 0
-        else:
-            C = []
-            for i in range(n):
-                while True:
-                    fila = simpledialog.askstring("Ingreso de Matriz", f"Ingrese los {n} elementos de la fila {i + 1}:")
-                    try:
-                        fila = list(map(int, fila.split()))
-                        if len(fila) != n:
-                            raise ValueError
-                        break
-                    except ValueError:
-                        messagebox.showerror("Error", f"Debe ingresar exactamente {n} valores numéricos por fila.")
-                C.append(fila)
-
-            # Evitar bucles y aristas inversas en la matriz ingresada
-            for i in range(n):
-                C[i][i] = 0  # Eliminar bucles en la diagonal
-                for j in range(i+1, n):
-                    if C[i][j] > 0:  # Si hay arista en (i,j), eliminar (j,i)
-                        C[j][i] = 0
-                    elif C[j][i] > 0:  # Si hay arista en (j,i), eliminar (i,j)
-                        C[i][j] = 0
-
-        self.mostrar_matriz(C)
-
-        while True:
-            fuente = simpledialog.askinteger("Vértice Fuente", f"Ingrese el vértice fuente (0 a {n-1}):")
-            sumidero = simpledialog.askinteger("Vértice Sumidero", f"Ingrese el vértice sumidero (0 a {n-1}):")
-            if fuente == sumidero:
-                messagebox.showerror("Error", "El vértice fuente y sumidero no pueden ser el mismo.")
-            elif fuente is None or sumidero is None or fuente < 0 or fuente >= n or sumidero < 0 or sumidero >= n:
-                messagebox.showerror("Error", "Vértices deben estar en el rango válido.")
-            else:
-                break
-
-        flujo_maximo, pasos, G, F = self.edmonds_karp(C, fuente, sumidero)
-        self.texto_salida.insert(tk.END, f"\nEl flujo máximo desde el vértice {fuente} al vértice {sumidero} es: {flujo_maximo}\n")
+        flujo_maximo, pasos, F = self.edmonds_karp(self.matriz_capacidades, self.fuente, self.sumidero)
+        self.texto_salida.insert(tk.END, f"\nFlujo máximo desde el nodo {self.fuente} al nodo {self.sumidero}: {flujo_maximo}\n")
 
         self.menu_pasos.delete(0, tk.END)
         for datos_paso in pasos:
-            self.menu_pasos.add_command(label=f"Paso {datos_paso[0]}", command=lambda dp=datos_paso: self.graficar_paso(dp, G))
+            self.menu_pasos.add_command(
+                label=f"Paso {datos_paso[0]}", 
+                command=lambda dp=datos_paso: self.graficar_paso(dp, F)
+            )
+        self.menu_pasos.add_command(
+            label="Flujo Máximo Final", 
+            command=lambda: self.graficar_flujo_maximo(F)
+        )
+        
+    def limpiar_pantalla(self):
+        self.texto_salida.delete(1.0, tk.END)
+        self.limpiar_grafico()
 
-        # Agregar opción para mostrar el grafo final con las aristas colapsadas
-        self.menu_pasos.add_command(label="Flujo Máximo Grafo", command=lambda: self.graficar_flujo_maximo(G, F))
+    def limpiar_grafico(self):
+        for widget in self.marco_grafico.winfo_children():
+            widget.destroy()
+        plt.clf()
 
 if __name__ == "__main__":
     raiz = tk.Tk()
+    # Usar una resolución más pequeña
+    raiz.geometry("800x600")
     app = AplicacionFlujoMaximo(raiz)
     raiz.mainloop()
