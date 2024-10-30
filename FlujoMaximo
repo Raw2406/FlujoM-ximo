@@ -16,8 +16,8 @@ class VentanaSeleccionTipo(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
         
-        # Centrar la ventana
-        self.geometry("300x150")
+        # Hacer la ventana más grande
+        self.geometry("400x200")
         self.resizable(False, False)
         self.configure(bg='#f0f0f0')
         
@@ -25,29 +25,39 @@ class VentanaSeleccionTipo(tk.Toplevel):
         frame = tk.Frame(self, bg='#f0f0f0')
         frame.pack(expand=True, padx=20, pady=20)
         
-        # Etiqueta
+        # Etiqueta con fuente más grande y ajuste de ancho
         tk.Label(frame, 
-                text="Seleccione el tipo de generación de nodos:",
-                bg='#f0f0f0',
-                font=("Helvetica", 10, "bold")).pack(pady=10)
+                 text="Seleccione el tipo de generación de nodos:",
+                 bg='#f0f0f0',
+                 font=("Helvetica", 12, "bold"),
+                 wraplength=350).pack(pady=20)
         
-        # Botones
+        # Estilo común para ambos botones (reduciendo el tamaño)
+        button_style = {
+            'width': 20,
+            'height': 1,
+            'font': ('Helvetica', 10),
+            'bg': '#e0e0e0',
+            'relief': 'raised'
+        }
+        
+        # Botones con el mismo estilo
         tk.Button(frame, 
-                 text="Generación Clásica",
-                 command=lambda: self.seleccionar("clasica"),
-                 width=20).pack(pady=5)
+                  text="Generación Automática",
+                  command=lambda: self.seleccionar("clasica"),
+                  **button_style).pack(pady=10)
         
         tk.Button(frame, 
-                 text="Generación Personalizada",
-                 command=lambda: self.seleccionar("personalizada"),
-                 width=20).pack(pady=5)
+                  text="Generación Personalizada",
+                  command=lambda: self.seleccionar("personalizada"),
+                  **button_style).pack(pady=10)
         
         # Centrar la ventana
         self.center_window()
         
         # Esperar respuesta
         self.wait_window()
-        
+
     def center_window(self):
         self.update_idletasks()
         width = self.winfo_width()
@@ -59,6 +69,8 @@ class VentanaSeleccionTipo(tk.Toplevel):
     def seleccionar(self, tipo):
         self.resultado = tipo
         self.destroy()
+
+
 
 # Clase para la ventana de colocación personalizada de nodos
 class VentanaColocacionNodos(tk.Toplevel):
@@ -133,11 +145,46 @@ class VentanaColocacionNodos(tk.Toplevel):
                     text="Todos los nodos han sido colocados")
                 self.destroy()
                 
+class VentanaMatriz(tk.Toplevel):
+    def __init__(self, parent, matriz):
+        super().__init__(parent)
+        self.title("Matriz de Capacidades")
+        
+        # Hacer la ventana modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Configurar tamaño y scroll
+        frame = tk.Frame(self)
+        frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        
+        # Agregar scrollbars
+        scrollbar_y = tk.Scrollbar(frame)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        scrollbar_x = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Crear texto con scroll
+        self.texto = tk.Text(frame, wrap=tk.NONE, 
+                            xscrollcommand=scrollbar_x.set,
+                            yscrollcommand=scrollbar_y.set,
+                            width=50, height=20)
+        self.texto.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar_y.config(command=self.texto.yview)
+        scrollbar_x.config(command=self.texto.xview)
+        
+        # Mostrar la matriz
+        for fila in matriz:
+            self.texto.insert(tk.END, " ".join(f"{cap:3}" for cap in fila) + "\n")   
+                         
 class VentanaArista(tk.Toplevel):
     def __init__(self, parent, n_nodos):
         super().__init__(parent)
         self.title("Agregar Arista")
         self.resultado = None
+        self.n_nodos = n_nodos
         
         # Hacer la ventana modal
         self.transient(parent)
@@ -148,8 +195,10 @@ class VentanaArista(tk.Toplevel):
         tk.Label(self, text="Nodo Destino:").grid(row=1, column=0, padx=5, pady=5)
         tk.Label(self, text="Capacidad:").grid(row=2, column=0, padx=5, pady=5)
         
-        self.origen = ttk.Combobox(self, values=list(range(n_nodos)))
-        self.destino = ttk.Combobox(self, values=list(range(n_nodos)))
+        # Crear comboboxes con valores válidos
+        valores_nodos = list(range(n_nodos))
+        self.origen = ttk.Combobox(self, values=valores_nodos, state="readonly")
+        self.destino = ttk.Combobox(self, values=valores_nodos, state="readonly")
         self.capacidad = tk.Entry(self)
         
         self.origen.grid(row=0, column=1, padx=5, pady=5)
@@ -160,16 +209,19 @@ class VentanaArista(tk.Toplevel):
         
         # Centrar la ventana
         self.geometry("+%d+%d" % (parent.winfo_rootx()+50, parent.winfo_rooty()+50))
-        
-        self.wait_window()
     
     def aceptar(self):
         try:
+            if not self.origen.get() or not self.destino.get():
+                raise ValueError("Debe seleccionar nodos origen y destino")
+                
             origen = int(self.origen.get())
             destino = int(self.destino.get())
             capacidad = int(self.capacidad.get())
+            
             if capacidad <= 0:
                 raise ValueError("La capacidad debe ser positiva")
+                
             self.resultado = (origen, destino, capacidad)
             self.destroy()
         except ValueError as e:
@@ -196,6 +248,7 @@ class AplicacionFlujoMaximo:
         menu_opciones.add_command(label="Iniciar Red de Flujo", command=self.iniciar_red)
         menu_opciones.add_command(label="Agregar Arista", command=self.agregar_arista)
         menu_opciones.add_command(label="Calcular Flujo Máximo", command=self.calcular_flujo_maximo)
+        menu_opciones.add_command(label="Ver Matriz de Capacidades", command=self.mostrar_matriz)
         menu_opciones.add_command(label="Borrar", command=self.limpiar_pantalla)
         menu_opciones.add_separator()
         menu_opciones.add_command(label="Salir", command=self.raiz.quit)
@@ -297,8 +350,6 @@ class AplicacionFlujoMaximo:
         self.font_size = font_sizes.get(self.n, 6)
                 
     def generar_red_aleatoria(self):
-        """Genera una red aleatoria con capacidades aleatorias para las aristas,
-        respetando las restricciones de no bucles y no aristas bidireccionales."""
         if self.n < 2:
            messagebox.showerror("Error", "No hay suficientes nodos para generar una red aleatoria.")
            return
@@ -352,7 +403,6 @@ class AplicacionFlujoMaximo:
                aristas_adicionales -= 1
 
     def generar_camino_base(self):
-        """Genera un camino base desde la fuente hasta el sumidero."""
         nodos_disponibles = set(range(self.n)) - {self.fuente, self.sumidero}
         camino = [self.fuente]
     
@@ -395,7 +445,7 @@ class AplicacionFlujoMaximo:
     
     # Solicitar número de nodos
         self.n = simpledialog.askinteger("Número de Nodos", 
-         "Ingrese el número de nodos (de 8 a 16):", 
+         "Ingrese el número de nodos (mínimo 8 y máximo 16):", 
          minvalue=8, maxvalue=16)
     
         if not self.n:
@@ -447,46 +497,61 @@ class AplicacionFlujoMaximo:
         self.texto_salida.insert(tk.END, "Red de flujo iniciada.\n")
         self.texto_salida.insert(tk.END, f"Nodo fuente: {self.fuente}\n")
         self.texto_salida.insert(tk.END, f"Nodo sumidero: {self.sumidero}\n")
-        
+    
+    def mostrar_matriz(self):
+        if self.matriz_capacidades:
+            VentanaMatriz(self.raiz, self.matriz_capacidades)
+        else:
+            messagebox.showerror("Error", "No hay matriz de capacidades generada.")
+                
     def agregar_arista(self):
         if not self.G:
             messagebox.showerror("Error", "Primero debe iniciar la red de flujo.")
             return
         
+        self.agregar_arista_proceso()
+    
+    def agregar_arista_proceso(self):
         # Usar la ventana personalizada para ingresar datos
         ventana = VentanaArista(self.raiz, self.n)
+        self.raiz.wait_window(ventana)
+        
         if ventana.resultado:
-         origen, destino, capacidad = ventana.resultado
-        
+            origen, destino, capacidad = ventana.resultado
+            
             # Validaciones
-         if origen == destino:
-              messagebox.showerror("Error", "No se permiten bucles.")
-              return
+            if origen == destino:
+                messagebox.showerror("Error", "No se permiten bucles.")
+                self.preguntar_continuar_arista()
+                return
             
-         if origen == self.sumidero or destino == self.fuente:
-             messagebox.showerror("Error", "No se pueden crear aristas desde el sumidero o hacia la fuente.")
-             return
-         
-         if origen == self.fuente and destino == self.sumidero:
-            messagebox.showerror("Error", "No se permite la conexión directa entre el nodo fuente y el sumidero.")
-            return
-           
-         if self.G.has_edge(origen, destino):
-             messagebox.showerror("Error", "Esta arista ya existe.")
-             return
+            if origen == self.fuente and destino == self.sumidero:
+                messagebox.showerror("Error", "No se permite la conexión directa entre el nodo fuente y el sumidero.")
+                self.preguntar_continuar_arista()
+                return
+            
+            if self.G.has_edge(origen, destino):
+                messagebox.showerror("Error", "Esta arista ya existe.")
+                self.preguntar_continuar_arista()
+                return
 
-        # Nueva validación para aristas bidireccionales
-         if self.G.has_edge(destino, origen):
-             messagebox.showerror("Error", "Ya existe una arista en dirección opuesta. No se permiten conexiones bidireccionales.")
-             return
+            if self.G.has_edge(destino, origen):
+                messagebox.showerror("Error", "Ya existe una arista en dirección opuesta. No se permiten conexiones bidireccionales.")
+                self.preguntar_continuar_arista()
+                return
+                
+            # Agregar arista
+            self.G.add_edge(origen, destino, capacity=capacidad)
+            self.actualizar_grafo()
             
-        # Agregar arista
-         self.G.add_edge(origen, destino, capacity=capacidad)
-         self.actualizar_grafo()
-        
-        # Preguntar si desea agregar otra arista
-         if not messagebox.askyesno("Continuar", "¿Desea agregar otra arista?"):
-             self.generar_matriz()
+            # Preguntar si desea agregar otra arista
+            self.preguntar_continuar_arista()
+    
+    def preguntar_continuar_arista(self):
+        if messagebox.askyesno("Continuar", "¿Desea agregar otra arista?"):
+            self.agregar_arista_proceso()
+        else:
+            self.generar_matriz()
 
     def actualizar_grafo(self):
         self.limpiar_grafico()
@@ -517,10 +582,8 @@ class AplicacionFlujoMaximo:
         self.matriz_capacidades = [[0] * self.n for _ in range(self.n)]
         for u, v, data in self.G.edges(data=True):
             self.matriz_capacidades[u][v] = data['capacity']
-
-        self.texto_salida.insert(tk.END, "\nMatriz de capacidades generada:\n")
-        for fila in self.matriz_capacidades:
-            self.texto_salida.insert(tk.END, " ".join(f"{cap:3}" for cap in fila) + "\n")
+        
+        self.texto_salida.insert(tk.END, "\nMatriz de capacidades generada. Para visualizarla, seleccione 'Ver Matriz de Capacidades' en el menú de opciones.\n")
 
     def bfs(self, C, F, fuente, sumidero, padre):
         visitado = [False] * len(C)
@@ -606,7 +669,7 @@ class AplicacionFlujoMaximo:
         for u, v, data in self.G.edges(data=True):
             capacidad = data['capacity']
             flujo_actual = F[u][v]
-            edge_labels[(u, v)] = f"{capacidad}/{flujo_actual}"
+            edge_labels[(u, v)] = f"{capacidad},{flujo_actual}"
             
             # Colorear las aristas según si están en el camino actual
             if (u, v) in aristas_camino:
@@ -639,7 +702,7 @@ class AplicacionFlujoMaximo:
         for u, v, data in self.G.edges(data=True):
             capacidad = data['capacity']
             flujo_actual = F[u][v]
-            edge_labels[(u, v)] = f"{capacidad}/{flujo_actual}"
+            edge_labels[(u, v)] = f"{capacidad},{flujo_actual}"
             
             # Colorear las aristas saturadas
             if flujo_actual == capacidad:
